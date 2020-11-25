@@ -1,0 +1,97 @@
+service: team-2-demo
+plugins:
+  - serverless-python-requirements
+
+provider:
+  name: aws
+  stage: dev
+  region: eu-west-1
+  role: arn:aws:iam::670948818876:role/ServerlessResourcesRole
+package:
+  individually: true
+
+functions:
+  extract-lambda:    
+    runtime: python3.8
+    handler: handler.start
+    module: extract_lambda
+    event:
+      - s3:
+        bucket: cafe-data-data-pump-dev-team-2
+        event: s3:ObjectCreated:Put
+        rules:
+          - suffix: .csv
+        existing: true
+    destinations:
+      onSuccess: arn:aws:sqs:eu-west-1:670948818876:ExtractTransformQueueTeam2
+      #!GetAtt ExtractTransformQueueTeam2.Arn alternate format
+      #onFailure: #lambda that prints failed or queue dedicated to failed lambda executions
+    # deadletter: 
+    #   targetArn:
+    #     GetResourceArn: !GetAtt DLQExtractTransformQueueTeam2.Arn
+    environment:
+      QueueUrl: !Ref ExtractTransformQueueTeam2
+      REGION: eu-west-1
+  transform-lambda:    
+    runtime: python3.8
+    handler: handler.start
+    module: transform_lambda
+    events:
+      - sqs:
+         arn: !GetAtt ExtractTransformQueueTeam2.Arn
+    # deadletter: 
+    #   targetArn:
+    #     GetResourceArn: !GetAtt DLQTransformLoadQueueTeam2.Arn
+    environment: 
+      QueueUrl: !Ref TransformLoadQueueTeam2
+      REGION: eu-west-1
+  load-lambda:
+    runtime: python3.8
+    handler: handler.start
+    module: load_lambda
+    timeout: 25
+    reservedConcurrency: 10
+    events:
+      - sqs:
+         arn: !GetAtt TransformLoadQueueTeam2.Arn
+    vpc:
+      securityGroupIds:
+        - !ImportValue RedshiftAndVPC-VPCSecurtiyGroup
+      subnetIds:
+        - !ImportValue RedshiftAndVPC-VPCPrivateSubnet
+    environment:
+      DB_HOST: !ImportValue RedshiftAndVPC-ClusterAddress
+      DB_USER: team2
+      DB_PORT: !ImportValue RedshiftAndVPC-ClusterPort
+      DB_NAME: team2db
+      DB_CLUSTER: !ImportValue RedshiftAndVPC-ClusterID
+resources:
+  Resources:
+    ExtractTransformQueueTeam2:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        MessageRetentionPeriod: 604800
+        QueueName: ExtractTransformQueueTeam2 
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt DLQExtractTransformQueueTeam2.Arn
+          maxReceiveCount: 5
+    DLQExtractTransformQueueTeam2:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 604800
+        QueueName: DLQExtractTransformQueueTeam2
+    TransformLoadQueueTeam2:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        MessageRetentionPeriod: 604800
+        QueueName: TransformLoadQueueTeam2
+        VisibilityTimeout: 75
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt DLQTransformLoadQueueTeam2.Arn
+          maxReceiveCount: 5
+    DLQTransformLoadQueueTeam2:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 604800
+        QueueName: DLQTransformLoadQueueTeam2
+        

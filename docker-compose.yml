@@ -1,0 +1,17 @@
+# version: "3.8"
+
+# services:
+#   db:
+#     image: mysql
+#     container_name: mysql_team2
+#     restart: always
+#     environment:
+#       MYSQL_ROOT_PASSWORD: "${mysql_pass}"
+#     ports:
+#       - "33066:3306"
+#   adminer:
+#     image: adminer
+#     container_name: adminer_team2
+#     restart: always
+#     ports:
+#       - 8080:8080
