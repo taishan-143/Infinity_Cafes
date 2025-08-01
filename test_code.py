@@ -5,7 +5,6 @@ import hashlib
 import sys
 from transform_lambda.deep_getsizeof import *
 
-### 'get_data' is used for testing purposes only ###
 
 def get_data(file):
     cafe_data_list = []
