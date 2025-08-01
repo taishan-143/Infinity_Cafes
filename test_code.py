@@ -21,7 +21,6 @@ def get_data(file):
 ''' The 'raw_data' argument in the following functions is a list of lists. Each of the inner lists is a row from the .csv file'''
 
 # Removed get_date_time and replaced with new function that
-# Returns a string with yyyy/mm/dd hh:mm:ss
 def get_timestamp(raw_data):   
     list_of_timestamps = []
     for row in raw_data:
